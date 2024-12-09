@@ -3,17 +3,33 @@ import 'package:barcode_scan2/platform_wrapper.dart';
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:permission_handler/permission_handler.dart';
 import '../../config/api_config.dart';
 import '../../models/SanPham.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
+
+XFile? selectedImage;
 class InventoryTab extends StatefulWidget {
-  const InventoryTab({super.key});
+  const InventoryTab({Key? key}) : super(key: key);
 
   @override
   State<InventoryTab> createState() => _InventoryTabState();
 }
 
 class _InventoryTabState extends State<InventoryTab> {
+  // Các biến dropdown
+  String? selectedLoaiSanPham; // Lựa chọn loại sản phẩm
+  String? selectedHangSanXuat; // Lựa chọn hãng sản xuất
+  String? selectedNhaCungCap; // Lựa chọn nhà cung cấp
+
+  List<Map<String, String>> loaiSanPhamList = []; // Danh sách loại sản phẩm
+  List<Map<String, String>> hangSanXuatList = []; // Danh sách hãng sản xuất
+  List<Map<String, String>> nhaCungCapList = []; // Danh sách nhà cung cấp
+
+
+
   List<SanPham> products = [];
   bool isLoading = true;
   final TextEditingController searchController = TextEditingController();
@@ -23,6 +39,7 @@ class _InventoryTabState extends State<InventoryTab> {
   void initState() {
     super.initState();
     fetchProducts();
+    fetchDropdownData();
   }
 
   @override
@@ -32,12 +49,12 @@ class _InventoryTabState extends State<InventoryTab> {
     super.dispose();
   }
 
+
   Future<void> scanBarcode() async {
     try {
       var result = await BarcodeScanner.scan();
       if (result.rawContent.isNotEmpty) {
-        // Gọi API để lấy thông tin sản phẩm theo ID
-        final productId = result.rawContent; // Giả sử mã vạch chính là ID
+        final productId = result.rawContent;
         final response = await http.get(
           Uri.parse('${ApiConfig.baseUrl}/api/SanPham/GetById/$productId'),
         );
@@ -45,8 +62,6 @@ class _InventoryTabState extends State<InventoryTab> {
         if (response.statusCode == 200) {
           final productData = json.decode(response.body);
           SanPham product = SanPham.fromJson(productData);
-
-          // Hiển thị chi tiết sản phẩm và cho phép sửa
           _showEditProductDialog(product);
         } else {
           showError('Không tìm thấy sản phẩm với mã vạch: ${result.rawContent}');
@@ -56,7 +71,6 @@ class _InventoryTabState extends State<InventoryTab> {
       showError("Lỗi khi quét mã vạch: $e");
     }
   }
-
 
   Future<void> searchAndAddProduct(String barcode) async {
     try {
@@ -80,8 +94,6 @@ class _InventoryTabState extends State<InventoryTab> {
     }
   }
 
-
-
   Future<void> fetchProducts() async {
     try {
       final response = await http.get(
@@ -89,18 +101,28 @@ class _InventoryTabState extends State<InventoryTab> {
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = json.decode(response.body);
+        final List<dynamic>? data = json.decode(response.body);
         setState(() {
-          products = data.map((json) => SanPham.fromJson(json)).toList();
+          products = data != null
+              ? data.map((json) => SanPham.fromJson(json)).toList()
+              : [];
           isLoading = false;
         });
+      } else {
+        setState(() => isLoading = false);
+        showError('Không thể tải danh sách sản phẩm');
       }
     } catch (e) {
       setState(() => isLoading = false);
-      showError('Không thể tải danh sách sản phẩm');
+      showError('Không thể tải danh sách sản phẩm: $e');
     }
   }
-
+  Future<void> requestCameraPermission() async {
+    final status = await Permission.camera.request();
+    if (status.isDenied || status.isPermanentlyDenied) {
+      showError('Ứng dụng cần quyền truy cập camera để sử dụng chức năng này.');
+    }
+  }
   Future<void> searchProducts(String keyword) async {
     if (_debounce?.isActive ?? false) _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () async {
@@ -108,7 +130,6 @@ class _InventoryTabState extends State<InventoryTab> {
         fetchProducts();
         return;
       }
-
       try {
         setState(() => isLoading = true);
         final response = await http.get(
@@ -135,7 +156,6 @@ class _InventoryTabState extends State<InventoryTab> {
     }
 
     if (imageUrl.startsWith('data:image')) {
-      // Handle base64 image
       final String base64Image = imageUrl.split(',')[1];
       return Image.memory(
         base64Decode(base64Image),
@@ -144,14 +164,14 @@ class _InventoryTabState extends State<InventoryTab> {
         fit: BoxFit.cover,
       );
     } else {
-      // Handle URL image
       return Image.network(
-        '${ApiConfig.baseUrl}$imageUrl',
+        '$imageUrl',
         height: 100,
         width: 100,
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) =>
-        const Icon(Icons.error, size: 50),
+        errorBuilder: (context, error, stackTrace) {
+          return const Icon(Icons.error, size: 50, color: Colors.red);
+        },
       );
     }
   }
@@ -184,15 +204,59 @@ class _InventoryTabState extends State<InventoryTab> {
     );
   }
 
+  XFile? selectedImage;
 
+  Future<void> pickImage(ImageSource source) async {
+    final ImagePicker picker = ImagePicker();
+
+    // Hiển thị trạng thái loading nếu cần (không bắt buộc)
+    setState(() {
+      selectedImage = null; // Đặt về null trước khi xử lý ảnh mới
+    });
+
+    final XFile? image = await picker.pickImage(source: source);
+
+    if (image != null) {
+      setState(() {
+        selectedImage = image; // Cập nhật ngay lập tức khi ảnh được chọn
+      });
+    }
+  }
+
+  void _showImagePickerOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.camera_alt),
+            title: const Text('Chụp ảnh bằng camera'),
+            onTap: () {
+              Navigator.pop(context);
+              pickImage(ImageSource.camera);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.photo_library),
+            title: const Text('Chọn ảnh từ thư viện'),
+            onTap: () {
+              Navigator.pop(context);
+              pickImage(ImageSource.gallery);
+            },
+          ),
+        ],
+      ),
+    );
+  }
   void _showAddProductDialog() {
     final nameController = TextEditingController();
     final descriptionController = TextEditingController();
     final quantityController = TextEditingController();
     final priceController = TextEditingController();
-    final weightController = TextEditingController();  // Thêm trường khối lượng
-    final sizeController = TextEditingController();  // Thêm trường kích thước
-    final originController = TextEditingController();  // Thêm trường xuất xứ
+    final weightController = TextEditingController();
+    final sizeController = TextEditingController();
+    final originController = TextEditingController();
 
     showDialog(
       context: context,
@@ -202,14 +266,101 @@ class _InventoryTabState extends State<InventoryTab> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Tên sản phẩm'),
+              // Nút chọn ảnh
+              ElevatedButton.icon(
+                onPressed: _showImagePickerOptions,
+                icon: const Icon(Icons.image),
+                label: const Text('Chọn ảnh'),
               ),
-              TextField(
-                controller: descriptionController,
-                decoration: const InputDecoration(labelText: 'Mô tả'),
+              if (selectedImage != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Stack(
+                    alignment: Alignment.topRight,
+                    children: [
+                      Image.file(
+                        File(selectedImage!.path),
+                        height: 100,
+                        width: 100,
+                        fit: BoxFit.cover,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.red),
+                        onPressed: () {
+                          setState(() {
+                            selectedImage = null; // Xóa ảnh đã chọn
+                          });
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              // Dropdown Loại sản phẩm
+              DropdownButtonFormField<String>(
+                value: selectedLoaiSanPham,
+                decoration: const InputDecoration(labelText: 'Loại sản phẩm'),
+                items: loaiSanPhamList.isNotEmpty
+                    ? loaiSanPhamList.map((loai) {
+                  return DropdownMenuItem<String>(
+                    value: loai['id'],
+                    child: Text(loai['name'] ?? ''),
+                  );
+                }).toList()
+                    : [DropdownMenuItem<String>(value: null, child: Text('Đang tải...'))],
+                onChanged: loaiSanPhamList.isNotEmpty
+                    ? (value) {
+                  setState(() {
+                    selectedLoaiSanPham = value;
+                  });
+                }
+                    : null,
               ),
+              const SizedBox(height: 16),
+              // Dropdown Hãng sản xuất
+              DropdownButtonFormField<String>(
+                value: selectedHangSanXuat,
+                decoration: const InputDecoration(labelText: 'Hãng sản xuất'),
+                items: hangSanXuatList.isNotEmpty
+                    ? hangSanXuatList.map((hang) {
+                  return DropdownMenuItem<String>(
+                    value: hang['id'],
+                    child: Text(hang['name'] ?? ''),
+                  );
+                }).toList()
+                    : [DropdownMenuItem<String>(value: null, child: Text('Đang tải...'))],
+                onChanged: hangSanXuatList.isNotEmpty
+                    ? (value) {
+                  setState(() {
+                    selectedHangSanXuat = value;
+                  });
+                }
+                    : null,
+              ),
+              const SizedBox(height: 16),
+              // Dropdown Nhà cung cấp
+              DropdownButtonFormField<String>(
+                value: selectedNhaCungCap,
+                decoration: const InputDecoration(labelText: 'Nhà cung cấp'),
+                items: nhaCungCapList.isNotEmpty
+                    ? nhaCungCapList.map((ncc) {
+                  return DropdownMenuItem<String>(
+                    value: ncc['id'],
+                    child: Text(ncc['name'] ?? ''),
+                  );
+                }).toList()
+                    : [DropdownMenuItem<String>(value: null, child: Text('Đang tải...'))],
+                onChanged: nhaCungCapList.isNotEmpty
+                    ? (value) {
+                  setState(() {
+                    selectedNhaCungCap = value;
+                  });
+                }
+                    : null,
+              ),
+              const SizedBox(height: 16),
+              // Các trường nhập liệu khác
+              TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Tên sản phẩm')),
+              TextField(controller: descriptionController, decoration: const InputDecoration(labelText: 'Mô tả')),
               TextField(
                 controller: quantityController,
                 decoration: const InputDecoration(labelText: 'Số lượng'),
@@ -225,14 +376,8 @@ class _InventoryTabState extends State<InventoryTab> {
                 decoration: const InputDecoration(labelText: 'Khối lượng'),
                 keyboardType: TextInputType.number,
               ),
-              TextField(
-                controller: sizeController,
-                decoration: const InputDecoration(labelText: 'Kích thước'),
-              ),
-              TextField(
-                controller: originController,
-                decoration: const InputDecoration(labelText: 'Xuất xứ'),
-              ),
+              TextField(controller: sizeController, decoration: const InputDecoration(labelText: 'Kích thước')),
+              TextField(controller: originController, decoration: const InputDecoration(labelText: 'Xuất xứ')),
             ],
           ),
         ),
@@ -242,18 +387,56 @@ class _InventoryTabState extends State<InventoryTab> {
             child: const Text('Hủy'),
           ),
           ElevatedButton(
-            onPressed: () {
-              // Xử lý thêm sản phẩm với các trường bổ sung
-              _addProduct(
-                nameController.text,
-                descriptionController.text,
-                int.tryParse(quantityController.text) ?? 0,
-                double.tryParse(priceController.text) ?? 0.0,
-                double.tryParse(weightController.text) ?? 0.0,
-                sizeController.text,
-                originController.text,
+            onPressed: () async {
+              // Xử lý gửi dữ liệu
+              var request = http.MultipartRequest(
+                'POST',
+                Uri.parse('${ApiConfig.baseUrl}/api/SanPham/CreateProduct/uploadfile'),
               );
-              Navigator.pop(context);
+              request.fields['TenSanPham'] = nameController.text;
+              request.fields['Mota'] = descriptionController.text;
+              request.fields['SoLuong'] = quantityController.text;
+              request.fields['DonGia'] = priceController.text;
+              request.fields['KhoiLuong'] = weightController.text;
+              request.fields['KichThuoc'] = sizeController.text;
+              request.fields['XuatXu'] = originController.text;
+              request.fields['MaLoaiSanPham'] = selectedLoaiSanPham ?? '1';
+              request.fields['MaHangSanXuat'] = selectedHangSanXuat ?? '1';
+              request.fields['MaNhaCungCap'] = selectedNhaCungCap ?? '1';
+
+              // Thêm ảnh vào request
+              if (selectedImage != null) {
+                request.files.add(await http.MultipartFile.fromPath(
+                  'Images',
+                  selectedImage!.path,
+                ));
+              }
+
+              var response = await request.send();
+              if (response.statusCode == 201) {
+                fetchProducts(); // Load lại danh sách sản phẩm
+
+                // Reset tất cả các trường nhập liệu và dropdown
+                setState(() {
+                  nameController.clear();
+                  descriptionController.clear();
+                  quantityController.clear();
+                  priceController.clear();
+                  weightController.clear();
+                  sizeController.clear();
+                  originController.clear();
+                  selectedLoaiSanPham = null;
+                  selectedHangSanXuat = null;
+                  selectedNhaCungCap = null;
+                  selectedImage = null;
+                });
+
+                // Đóng dialog hoặc hiển thị thông báo thành công
+                showSuccess('Thêm sản phẩm thành công');
+                Navigator.pop(context);
+              } else {
+                showError('Thêm sản phẩm thất bại');
+              }
             },
             child: const Text('Thêm'),
           ),
@@ -262,51 +445,71 @@ class _InventoryTabState extends State<InventoryTab> {
     );
   }
 
-
 // Phương thức thêm sản phẩm
-  Future<void> _addProduct(String name, String description, int quantity, double price, double weight, String size, String origin) async {
+  Future<void> _addProduct(
+      String name,
+      String description,
+      int quantity,
+      double price,
+      double weight,
+      String size,
+      String origin,
+      List<XFile>? selectedImages,
+      ) async {
     try {
       setState(() => isLoading = true);
-      var request = http.MultipartRequest('POST', Uri.parse('${ApiConfig.baseUrl}/api/SanPham/CreateProduct/uploadfile'),
+
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('${ApiConfig.baseUrl}/api/SanPham/CreateProduct/uploadfile'),
       );
 
       request.fields['tenSanPham'] = name;
       request.fields['mota'] = description;
       request.fields['soLuong'] = quantity.toString();
       request.fields['donGia'] = price.toString();
-
-      request.fields['maLoaiSanPham'] = '1'; // Adjust as needed
-      request.fields['maHangSanXuat'] = '1'; // Adjust as needed
-
       request.fields['khoiLuong'] = weight.toString();
       request.fields['kichThuoc'] = size;
       request.fields['xuatXu'] = origin;
 
-      var response = await request.send();
+      // Thêm danh sách ảnh vào yêu cầu
+      if (selectedImages != null) {
+        for (var image in selectedImages) {
+          request.files.add(await http.MultipartFile.fromPath(
+            'Images',
+            image.path,
+          ));
+        }
+      }
 
+      var response = await request.send();
       if (response.statusCode == 201) {
-        await fetchProducts();  // Tải lại danh sách sản phẩm
+        await fetchProducts();
         showSuccess('Thêm sản phẩm thành công');
       } else {
-        showError('Thêm sản phẩm thất bại');
+        showError('Thêm sản phẩm thất bại: ${response.reasonPhrase}');
       }
     } catch (e) {
-      showError('Lỗi kết nối: $e');
+      showError('Lỗi khi thêm sản phẩm: $e');
     } finally {
       setState(() => isLoading = false);
     }
   }
 
-
 // Phương thức sửa sản phẩm
   void _showEditProductDialog(SanPham product) {
     final nameController = TextEditingController(text: product.tenSanPham);
     final descriptionController = TextEditingController(text: product.mota);
-    final quantityController = TextEditingController(text: product.soLuong.toString());
-    final priceController = TextEditingController(text: product.donGia.toString());
-    final weightController = TextEditingController(text: product.khoiLuong.toString());
-    final sizeController = TextEditingController(text: product.kichThuoc ?? "");
-    final originController = TextEditingController(text: product.xuatXu ?? "");
+    final quantityController = TextEditingController(text: product.soLuong?.toString());
+    final priceController = TextEditingController(text: product.donGia?.toString());
+    final weightController = TextEditingController(text: product.khoiLuong?.toString());
+    final sizeController = TextEditingController(text: product.kichThuoc);
+    final originController = TextEditingController(text: product.xuatXu);
+
+    // Gán giá trị ban đầu cho dropdown
+    String? currentLoaiSanPham = product.maLoaiSanPham.toString();
+    String? currentHangSanXuat = product.maHangSanXuat.toString();
+    String? currentNhaCungCap = product.maNhaCungCap.toString();
 
     showDialog(
       context: context,
@@ -316,14 +519,81 @@ class _InventoryTabState extends State<InventoryTab> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Tên sản phẩm'),
+              // Hiển thị ảnh hiện tại nếu có
+              if (product.image != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Image.network(
+                    product.image!,
+                    height: 100,
+                    width: 100,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ElevatedButton.icon(
+                onPressed: _showImagePickerOptions,
+                icon: const Icon(Icons.image),
+                label: const Text('Thay đổi ảnh'),
               ),
-              TextField(
-                controller: descriptionController,
-                decoration: const InputDecoration(labelText: 'Mô tả'),
+              const SizedBox(height: 16),
+
+              // Dropdown Loại sản phẩm
+              DropdownButtonFormField<String>(
+                value: currentLoaiSanPham,
+                decoration: const InputDecoration(labelText: 'Loại sản phẩm'),
+                items: loaiSanPhamList.map((loai) {
+                  return DropdownMenuItem<String>(
+                    value: loai['id'],
+                    child: Text(loai['name'] ?? ''),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    currentLoaiSanPham = value;
+                  });
+                },
               ),
+              const SizedBox(height: 16),
+
+              // Dropdown Hãng sản xuất
+              DropdownButtonFormField<String>(
+                value: currentHangSanXuat,
+                decoration: const InputDecoration(labelText: 'Hãng sản xuất'),
+                items: hangSanXuatList.map((hang) {
+                  return DropdownMenuItem<String>(
+                    value: hang['id'],
+                    child: Text(hang['name'] ?? ''),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    currentHangSanXuat = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Dropdown Nhà cung cấp
+              DropdownButtonFormField<String>(
+                value: currentNhaCungCap,
+                decoration: const InputDecoration(labelText: 'Nhà cung cấp'),
+                items: nhaCungCapList.map((ncc) {
+                  return DropdownMenuItem<String>(
+                    value: ncc['id'],
+                    child: Text(ncc['name'] ?? ''),
+                  );
+                }).toList(),
+                onChanged: (value) {
+                  setState(() {
+                    currentNhaCungCap = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Các trường nhập liệu khác
+              TextField(controller: nameController, decoration: const InputDecoration(labelText: 'Tên sản phẩm')),
+              TextField(controller: descriptionController, decoration: const InputDecoration(labelText: 'Mô tả')),
               TextField(
                 controller: quantityController,
                 decoration: const InputDecoration(labelText: 'Số lượng'),
@@ -339,14 +609,8 @@ class _InventoryTabState extends State<InventoryTab> {
                 decoration: const InputDecoration(labelText: 'Khối lượng'),
                 keyboardType: TextInputType.number,
               ),
-              TextField(
-                controller: sizeController,
-                decoration: const InputDecoration(labelText: 'Kích thước'),
-              ),
-              TextField(
-                controller: originController,
-                decoration: const InputDecoration(labelText: 'Xuất xứ'),
-              ),
+              TextField(controller: sizeController, decoration: const InputDecoration(labelText: 'Kích thước')),
+              TextField(controller: originController, decoration: const InputDecoration(labelText: 'Xuất xứ')),
             ],
           ),
         ),
@@ -356,18 +620,47 @@ class _InventoryTabState extends State<InventoryTab> {
             child: const Text('Hủy'),
           ),
           ElevatedButton(
-            onPressed: () {
-              _updateProduct(
-                product.maSanPham,
-                nameController.text,
-                descriptionController.text,
-                int.tryParse(quantityController.text) ?? 0,
-                double.tryParse(priceController.text) ?? 0.0,
-                double.tryParse(weightController.text) ?? 0.0,
-                sizeController.text,
-                originController.text,
+            onPressed: () async {
+              // Kiểm tra nếu các dropdown null
+              if (currentLoaiSanPham == null || currentHangSanXuat == null || currentNhaCungCap == null) {
+                showError('Vui lòng chọn đầy đủ thông tin.');
+                return;
+              }
+
+              // Cập nhật sản phẩm
+              var request = http.MultipartRequest(
+                'PUT',
+                Uri.parse('${ApiConfig.baseUrl}/api/SanPham/UpdateProduct/${product.maSanPham}'),
               );
-              Navigator.pop(context);
+
+              request.fields['TenSanPham'] = nameController.text;
+              request.fields['Mota'] = descriptionController.text;
+              request.fields['SoLuong'] = quantityController.text;
+              request.fields['DonGia'] = priceController.text;
+              request.fields['KhoiLuong'] = weightController.text;
+              request.fields['KichThuoc'] = sizeController.text;
+              request.fields['XuatXu'] = originController.text;
+              request.fields['MaLoaiSanPham'] = currentLoaiSanPham!;
+              request.fields['MaHangSanXuat'] = currentHangSanXuat!;
+              request.fields['MaNhaCungCap'] = currentNhaCungCap!;
+
+              // Nếu có ảnh mới được chọn
+              if (selectedImage != null) {
+                request.files.add(await http.MultipartFile.fromPath(
+                  'Images',
+                  selectedImage!.path,
+                ));
+              }
+
+              var response = await request.send();
+              if (response.statusCode == 204) {
+                await fetchProducts();
+                showSuccess('Cập nhật sản phẩm thành công');
+                Navigator.pop(context);
+              } else {
+                final error = await response.stream.bytesToString();
+                showError('Cập nhật thất bại: $error');
+              }
             },
             child: const Text('Cập nhật'),
           ),
@@ -375,41 +668,56 @@ class _InventoryTabState extends State<InventoryTab> {
       ),
     );
   }
-
-
-  Future<void> _updateProduct(int id, String name, String description, int quantity, double price, double weight, String size, String origin) async {
+  Future<void> _updateProduct(
+      int id,
+      String name,
+      String description,
+      int quantity,
+      double price,
+      double weight,
+      String size,
+      String origin,
+      List<XFile>? selectedImages,
+      ) async {
     try {
       setState(() => isLoading = true);
-      var request = http.MultipartRequest('PUT', Uri.parse('${ApiConfig.baseUrl}/api/SanPham/UpdateProduct/$id')
 
+      var request = http.MultipartRequest(
+        'PUT',
+        Uri.parse('${ApiConfig.baseUrl}/api/SanPham/UpdateProduct/$id'),
       );
 
       request.fields['tenSanPham'] = name;
       request.fields['mota'] = description;
       request.fields['soLuong'] = quantity.toString();
       request.fields['donGia'] = price.toString();
-      request.fields['maLoaiSanPham'] = '1'; // Adjust as needed
-      request.fields['maHangSanXuat'] = '1'; // Adjust as needed
       request.fields['khoiLuong'] = weight.toString();
       request.fields['kichThuoc'] = size;
       request.fields['xuatXu'] = origin;
 
-      var response = await request.send();
+      // Thêm danh sách ảnh vào yêu cầu
+      if (selectedImages != null) {
+        for (var image in selectedImages) {
+          request.files.add(await http.MultipartFile.fromPath(
+            'Images',
+            image.path,
+          ));
+        }
+      }
 
+      var response = await request.send();
       if (response.statusCode == 204) {
         await fetchProducts();
         showSuccess('Cập nhật sản phẩm thành công');
       } else {
-        showError('Cập nhật sản phẩm thất bại');
+        showError('Cập nhật sản phẩm thất bại: ${response.reasonPhrase}');
       }
     } catch (e) {
-      showError('Lỗi kết nối: $e');
+      showError('Lỗi khi cập nhật sản phẩm: $e');
     } finally {
       setState(() => isLoading = false);
     }
   }
-
-// Phương thức xóa sản phẩm
   void _confirmDeleteProduct(SanPham product) {
     showDialog(
       context: context,
@@ -438,18 +746,25 @@ class _InventoryTabState extends State<InventoryTab> {
     final uri = Uri.parse('${ApiConfig.baseUrl}/api/SanPham/DeleteProduct/$id');
 
     try {
-      final response = await http.delete(uri);
-      if (response.statusCode == 200) {
+      final response = await http.delete(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer YOUR_API_TOKEN', // Thay bằng token nếu cần
+        },
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
         showSuccess('Xóa sản phẩm thành công');
-        fetchProducts();  // Tải lại danh sách sản phẩm
+        fetchProducts(); // Tải lại danh sách sản phẩm
       } else {
-        showError('Xóa sản phẩm thất bại');
+        final error = json.decode(response.body);
+        showError('Xóa sản phẩm thất bại: ${error['message'] ?? 'Unknown error'}');
       }
     } catch (e) {
       showError('Lỗi kết nối: $e');
     }
   }
-
 
 // Thêm phương thức hiển thị thông báo thành công
   void showSuccess(String message) {
@@ -495,10 +810,10 @@ class _InventoryTabState extends State<InventoryTab> {
                 _detailRow('Xuất xứ', product.xuatXu),
                 ElevatedButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Đóng'),
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(double.infinity, 40),
                   ),
+                  child: const Text('Đóng'),
                 ),
               ],
             ),
@@ -507,7 +822,6 @@ class _InventoryTabState extends State<InventoryTab> {
       ),
     );
   }
-
 
   Widget _detailRow(String label, String? value) {
     return Padding(
@@ -538,7 +852,8 @@ class _InventoryTabState extends State<InventoryTab> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: _showAddProductDialog, // Gọi phương thức thêm sản phẩm mới
+            onPressed:
+            _showAddProductDialog, // Gọi phương thức thêm sản phẩm mới
           ),
           IconButton(
             icon: const Icon(Icons.qr_code_scanner), // Icon quét mã vạch
@@ -546,7 +861,6 @@ class _InventoryTabState extends State<InventoryTab> {
             tooltip: 'Quét mã vạch', // Gợi ý khi giữ icon
           ),
         ],
-
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: Padding(
@@ -568,10 +882,20 @@ class _InventoryTabState extends State<InventoryTab> {
         ),
       ),
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 10),
+            Text('Đang tải, vui lòng chờ...', style: TextStyle(fontSize: 16)),
+          ],
+        ),
+      )
           : products.isEmpty
           ? const Center(child: Text('Không tìm thấy sản phẩm'))
-          : ListView.builder(
+          :
+      ListView.builder(
         itemCount: products.length,
         itemBuilder: (context, index) {
           final product = products[index];
@@ -596,23 +920,19 @@ class _InventoryTabState extends State<InventoryTab> {
                   ),
                 ],
               ),
+              onTap: () => showProductDetails(product), // Sự kiện khi nhấn vào sản phẩm
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.info),
-                    onPressed: () => showProductDetails(product),
-                    tooltip: 'Xem chi tiết',
-                  ),
                   IconButton(
                     icon: const Icon(Icons.edit, color: Colors.blue),
                     onPressed: () => _showEditProductDialog(product),
                     tooltip: 'Sửa sản phẩm',
                   ),
                   IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () => _confirmDeleteProduct(product),
-                      tooltip: 'Xóa sản phẩm'
+                    icon: const Icon(Icons.delete, color: Colors.red),
+                    onPressed: () => _confirmDeleteProduct(product),
+                    tooltip: 'Xóa sản phẩm',
                   ),
                 ],
               ),
@@ -620,9 +940,45 @@ class _InventoryTabState extends State<InventoryTab> {
           );
         },
       ),
+
     );
   }
+  Future<void> fetchDropdownData() async {
+    try {
+      final loaiResponse = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/LoaiSanPham/Get'));
+      final hangResponse = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/HangSanXuat/Get'));
+      final nccResponse = await http.get(Uri.parse('${ApiConfig.baseUrl}/api/NhaCungCap/Get'));
 
+      if (loaiResponse.statusCode == 200 &&
+          hangResponse.statusCode == 200 &&
+          nccResponse.statusCode == 200) {
+        setState(() {
+          loaiSanPhamList = (json.decode(loaiResponse.body) as List<dynamic>).map((item) {
+            return {
+              'id': item['maLoaiSanPham'].toString(),
+              'name': item['tenLoaiSanPham'].toString(),
+            };
+          }).toList();
+          hangSanXuatList = (json.decode(hangResponse.body) as List<dynamic>).map((item) {
+            return {
+              'id': item['maHangSanXuat'].toString(),
+              'name': item['tenHangSanXuat'].toString(),
+            };
+          }).toList();
+          nhaCungCapList = (json.decode(nccResponse.body) as List<dynamic>).map((item) {
+            return {
+              'id': item['maNhaCungCap'].toString(),
+              'name': item['tenNhaCungCap'].toString(),
+            };
+          }).toList();
+        });
+      } else {
+        showError('Lỗi khi tải dữ liệu dropdown');
+      }
+    } catch (e) {
+      showError('Lỗi khi tải dữ liệu dropdown: $e');
+    }
+  }
   void showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: Colors.red),

@@ -1,23 +1,19 @@
 class PhieuXuatHang {
-  int maPhieuXuatHang;
+  int? maPhieuXuatHang;
   DateTime? ngayXuat;
-  String? hinhThucThanhToan;
-  String? phiVanChuyen;
+  double? phiVanChuyen;
   int? trangThai;
   bool? hide;
 
-  // Thông tin cơ bản về người dùng và khách hàng
   int maNguoiDung;
   String? tenNguoiDung;
 
   int maKhachHang;
   String? tenKhachHang;
 
-  // Constructor
   PhieuXuatHang({
-    required this.maPhieuXuatHang,
+    this.maPhieuXuatHang,
     this.ngayXuat,
-    this.hinhThucThanhToan,
     this.phiVanChuyen,
     this.trangThai,
     this.hide,
@@ -27,13 +23,12 @@ class PhieuXuatHang {
     this.tenKhachHang,
   });
 
-  // Factory constructor để chuyển từ JSON sang đối tượng
+  // Factory constructor để chuyển đổi từ JSON sang đối tượng
   factory PhieuXuatHang.fromJson(Map<String, dynamic> json) {
     return PhieuXuatHang(
       maPhieuXuatHang: json['maPhieuXuatHang'],
       ngayXuat: json['ngayXuat'] != null ? DateTime.parse(json['ngayXuat']) : null,
-      hinhThucThanhToan: json['hinhThucThanhToan'],
-      phiVanChuyen: json['phiVanChuyen'],
+      phiVanChuyen: (json['phiVanChuyen'] as num?)?.toDouble(),
       trangThai: json['trangThai'],
       hide: json['hide'],
       maNguoiDung: json['maNguoiDung'],
@@ -43,12 +38,11 @@ class PhieuXuatHang {
     );
   }
 
-  // Phương thức để chuyển đối tượng thành JSON
+  // Phương thức để chuyển đối tượng sang JSON
   Map<String, dynamic> toJson() {
     return {
       'maPhieuXuatHang': maPhieuXuatHang,
       'ngayXuat': ngayXuat?.toIso8601String(),
-      'hinhThucThanhToan': hinhThucThanhToan,
       'phiVanChuyen': phiVanChuyen,
       'trangThai': trangThai,
       'hide': hide,
@@ -57,5 +51,30 @@ class PhieuXuatHang {
       'maKhachHang': maKhachHang,
       'tenKhachHang': tenKhachHang,
     };
+  }
+
+  // Phương thức copyWith
+  PhieuXuatHang copyWith({
+    int? maPhieuXuatHang,
+    DateTime? ngayXuat,
+    double? phiVanChuyen,
+    int? trangThai,
+    bool? hide,
+    int? maNguoiDung,
+    String? tenNguoiDung,
+    int? maKhachHang,
+    String? tenKhachHang,
+  }) {
+    return PhieuXuatHang(
+      maPhieuXuatHang: maPhieuXuatHang ?? this.maPhieuXuatHang,
+      ngayXuat: ngayXuat ?? this.ngayXuat,
+      phiVanChuyen: phiVanChuyen ?? this.phiVanChuyen,
+      trangThai: trangThai ?? this.trangThai,
+      hide: hide ?? this.hide,
+      maNguoiDung: maNguoiDung ?? this.maNguoiDung,
+      tenNguoiDung: tenNguoiDung ?? this.tenNguoiDung,
+      maKhachHang: maKhachHang ?? this.maKhachHang,
+      tenKhachHang: tenKhachHang ?? this.tenKhachHang,
+    );
   }
 }

@@ -20,6 +20,18 @@ class PhieuNhapService {
     }
   }
 
+  Future<PhieuNhapHang> getPhieuNhapById(int id) async {
+    final url = Uri.parse('$_baseUrl/api/PhieuNhapHang/GetById/$id');
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      return PhieuNhapHang.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Failed to load PhieuNhapHang details');
+    }
+  }
+
+
   // Thêm phiếu nhập hàng
   Future<bool> createPhieuNhap(PhieuNhapHang phieuNhap) async {
     final url = Uri.parse('$_baseUrl/api/PhieuNhapHang/CreateImportOrder');

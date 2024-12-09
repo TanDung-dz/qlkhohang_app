@@ -63,7 +63,7 @@ class ReportsTab extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (context) => const KiemKeScreen(), // Điều hướng tới màn hình kiểm kê
+                builder: (context) =>  KiemKeScreen(), // Điều hướng tới màn hình kiểm kê
               ),
             );
           },

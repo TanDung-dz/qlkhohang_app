@@ -1,58 +1,73 @@
-import 'dart:io';
-
 class ChiTietPhieuXuatHang {
+  int maPhieuXuatHang;
   int maSanPham;
   String? tenSanPham;
-  int maPhieuXuatHang;
   int? soLuong;
   double? donGiaXuat;
-  double? tienMat;
-  double? nganHang;
   int? trangThai;
-  String? image; // URL hoặc base64 của ảnh
-  File? img; // Dùng để nhận file ảnh tải lên trong Flutter
+  List<String>? images;
 
-  // Constructor
   ChiTietPhieuXuatHang({
-    required this.maSanPham,
     required this.maPhieuXuatHang,
+    required this.maSanPham,
     this.tenSanPham,
     this.soLuong,
     this.donGiaXuat,
-    this.tienMat,
-    this.nganHang,
     this.trangThai,
-    this.image,
-    this.img,
+    this.images,
   });
 
-  // Factory constructor để chuyển từ JSON sang đối tượng
-  factory ChiTietPhieuXuatHang.fromJson(Map<String, dynamic> json) {
+  // Phương thức copyWith
+  ChiTietPhieuXuatHang copyWith({
+    int? maPhieuXuatHang,
+    int? maSanPham,
+    String? tenSanPham,
+    int? soLuong,
+    double? donGiaXuat,
+    int? trangThai,
+    List<String>? images,
+  }) {
     return ChiTietPhieuXuatHang(
-      maSanPham: json['maSanPham'],
-      maPhieuXuatHang: json['maPhieuXuatHang'],
-      tenSanPham: json['tenSanPham'],
-      soLuong: json['soLuong'],
-      donGiaXuat: json['donGiaXuat'] != null ? (json['donGiaXuat'] as num).toDouble() : null,
-      tienMat: json['tienMat'] != null ? (json['tienMat'] as num).toDouble() : null,
-      nganHang: json['nganHang'] != null ? (json['nganHang'] as num).toDouble() : null,
-      trangThai: json['trangThai'],
-      image: json['image'],
+      maPhieuXuatHang: maPhieuXuatHang ?? this.maPhieuXuatHang,
+      maSanPham: maSanPham ?? this.maSanPham,
+      tenSanPham: tenSanPham ?? this.tenSanPham,
+      soLuong: soLuong ?? this.soLuong,
+      donGiaXuat: donGiaXuat ?? this.donGiaXuat,
+      trangThai: trangThai ?? this.trangThai,
+      images: images ?? this.images,
     );
   }
 
-  // Phương thức để chuyển đối tượng thành JSON
+  // Chuyển đổi từ JSON sang object
+  factory ChiTietPhieuXuatHang.fromJson(Map<String, dynamic> json) {
+    return ChiTietPhieuXuatHang(
+      maPhieuXuatHang: json['maPhieuXuatHang'] as int,
+      maSanPham: json['maSanPham'] as int,
+      tenSanPham: json['tenSanPham'] as String?,
+      soLuong: json['soLuong'] as int?,
+      donGiaXuat: (json['donGiaXuat'] as num?)?.toDouble(),
+      trangThai: json['trangThai'] as int?,
+      images: [
+        json['image'] as String?,
+        json['image2'] as String?,
+        json['image3'] as String?,
+        json['image4'] as String?,
+        json['image5'] as String?,
+        json['image6'] as String?,
+      ].whereType<String>().toList(),
+    );
+  }
+
+  // Chuyển đổi từ object sang JSON
   Map<String, dynamic> toJson() {
     return {
-      'maSanPham': maSanPham,
       'maPhieuXuatHang': maPhieuXuatHang,
+      'maSanPham': maSanPham,
       'tenSanPham': tenSanPham,
       'soLuong': soLuong,
       'donGiaXuat': donGiaXuat,
-      'tienMat': tienMat,
-      'nganHang': nganHang,
       'trangThai': trangThai,
-      'image': image,
+      'images': images,
     };
   }
 }

@@ -5,12 +5,11 @@ class PhieuNhapHang {
   int? trangThai;
   bool? hide;
 
-  // Thông tin cơ bản về người dùng và nhà cung cấp
   int maNguoiDung;
-  String? tenNguoiDung; // Tên người dùng từ NguoiDung
+  String? tenNguoiDung;
 
   int maNhaCungCap;
-  String? tenNhaCungCap; // Tên nhà cung cấp từ NhaCungCap
+  String? tenNhaCungCap;
 
   PhieuNhapHang({
     this.maPhieuNhapHang,
@@ -52,5 +51,30 @@ class PhieuNhapHang {
       'maNhaCungCap': maNhaCungCap,
       'tenNhaCungCap': tenNhaCungCap,
     };
+  }
+
+  // Phương thức copyWith
+  PhieuNhapHang copyWith({
+    int? maPhieuNhapHang,
+    DateTime? ngayNhap,
+    double? phiVanChuyen,
+    int? trangThai,
+    bool? hide,
+    int? maNguoiDung,
+    String? tenNguoiDung,
+    int? maNhaCungCap,
+    String? tenNhaCungCap,
+  }) {
+    return PhieuNhapHang(
+      maPhieuNhapHang: maPhieuNhapHang ?? this.maPhieuNhapHang,
+      ngayNhap: ngayNhap ?? this.ngayNhap,
+      phiVanChuyen: phiVanChuyen ?? this.phiVanChuyen,
+      trangThai: trangThai ?? this.trangThai,
+      hide: hide ?? this.hide,
+      maNguoiDung: maNguoiDung ?? this.maNguoiDung,
+      tenNguoiDung: tenNguoiDung ?? this.tenNguoiDung,
+      maNhaCungCap: maNhaCungCap ?? this.maNhaCungCap,
+      tenNhaCungCap: tenNhaCungCap ?? this.tenNhaCungCap,
+    );
   }
 }

@@ -1,11 +1,11 @@
-
-
 class SanPham {
   final int maSanPham;
   final int maLoaiSanPham;
   final String? tenLoaiSanPham;
   final int maHangSanXuat;
   final String? tenHangSanXuat;
+  final int maNhaCungCap;         // Thêm trường này
+  final String? tenNhaCungCap;
   final String? tenSanPham;
   final String? mota;
   final int? soLuong;
@@ -25,6 +25,8 @@ class SanPham {
     required this.maLoaiSanPham,
     this.tenLoaiSanPham,
     required this.maHangSanXuat,
+    required this.maNhaCungCap,   // Thêm vào constructor
+    this.tenNhaCungCap,
     this.tenHangSanXuat,
     this.tenSanPham,
     this.mota,
@@ -48,6 +50,8 @@ class SanPham {
       tenLoaiSanPham: json['tenLoaiSanPham'] as String?,
       maHangSanXuat: json['maHangSanXuat'] as int,
       tenHangSanXuat: json['tenHangSanXuat'] as String?,
+      maNhaCungCap: json['maNhaCungCap'] as int,    // Thêm vào fromJson
+      tenNhaCungCap: json['tenNhaCungCap'] as String?,
       tenSanPham: json['tenSanPham'] as String?,
       mota: json['mota'] as String?,
       soLuong: json['soLuong'] as int?,

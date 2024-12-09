@@ -68,39 +68,42 @@ class ChiTietPhieuNhapHangService {
   }
 
   // Cập nhật chi tiết phiếu nhập hàng (bao gồm ảnh)
-  Future<bool> updateDetail(int phieuNhapId, int sanPhamId, ChiTietPhieuNhapHang detail, {File? imageFile}) async {
-    final url = Uri.parse('$_baseUrl/api/ChiTietPhieuNhapHang/$phieuNhapId/$sanPhamId');
-    final request = http.MultipartRequest('PUT', url);
-
-    request.fields['maPhieuNhapHang'] = detail.maPhieuNhapHang.toString();
-    request.fields['maSanPham'] = detail.maSanPham.toString();
-    request.fields['soLuong'] = detail.soLuong.toString();
-    request.fields['donGiaNhap'] = detail.donGiaNhap.toString();
-    request.fields['trangThai'] = detail.trangThai.toString();
-
-    if (imageFile != null) {
-      request.files.add(
-        await http.MultipartFile.fromPath('img', imageFile.path),
-      );
-    }
+  // Trong ChiTietPhieuNhapHangService:
+  Future<bool> updateDetail(int maPhieuNhap, int maSanPham, ChiTietPhieuNhapHang detail, {File? imageFile}) async {
+    final url = Uri.parse('$_baseUrl/api/ChiTietPhieuNhapHang/UpdateDetail/$maPhieuNhap/$maSanPham');
 
     try {
-      final response = await request.send();
-      if (response.statusCode == 204) {
-        return true; // Cập nhật thành công
-      } else {
-        // Lấy thông tin chi tiết về lỗi
-        final responseBody = await response.stream.bytesToString();
-        print("Error: ${response.statusCode} - ${responseBody}");
-        return false;
+      // Tạo form-data request
+      var request = http.MultipartRequest('PUT', url);
+
+      // Thêm các trường dữ liệu
+      request.fields.addAll({
+        'maPhieuNhapHang': detail.maPhieuNhapHang.toString(),
+        'maSanPham': detail.maSanPham.toString(),
+        'soLuong': detail.soLuong.toString(),
+        'trangThai': (detail.trangThai ?? 0).toString(),
+        'tenSanPham': detail.tenSanPham ?? '',
+      });
+
+      print("Update detail request fields: ${request.fields}"); // Debug log
+
+      // Nếu có file ảnh, thêm vào request
+      if (imageFile != null) {
+        request.files.add(
+            await http.MultipartFile.fromPath('Images', imageFile.path)
+        );
       }
+
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      print("Update response: ${response.statusCode}, Body: $responseBody"); // Debug log
+
+      return response.statusCode == 204;
     } catch (e) {
-      print("An error occurred: $e");
+      print("Error updating detail: $e");
       return false;
     }
   }
-
-
 
   // Xóa chi tiết phiếu nhập hàng
   Future<bool> deleteDetail(int maPhieuNhap, int maSanPham) async {
@@ -129,3 +132,4 @@ class ChiTietPhieuNhapHangService {
     return response.statusCode == 200;
   }
 }
+

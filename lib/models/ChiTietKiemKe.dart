@@ -1,32 +1,40 @@
-import 'dart:io';
+import 'dart:convert';
 
-class ChiTietKiemKe {
-  int maKiemKe;
-  int maSanPham;
-  String? tenSanPham;
-  int? soLuongTon;
-  int? soLuongThucTe;
-  int? trangThai;
-  String? nguyenNhan;
-  String? anh; // URL hoặc base64 của ảnh
-  File? img;  // Dùng để nhận file ảnh tải lên trong Flutter
+class ChiTietKiemKeDto {
+  final int? maKiemKe;
+  final int? maSanPham;
+  final String? tenSanPham;
+  final int? soLuongTon;
+  final int? soLuongThucTe;
+  final int? trangThai;
+  final String? nguyenNhan;
+  final String? anh;
+  final String? anh2;
+  final String? anh3;
+  final String? anh4;
+  final String? anh5;
+  final String? anh6;
+  final List<String>? images; // Danh sách URL ảnh tải lên
 
-  // Constructor
-  ChiTietKiemKe({
-    required this.maKiemKe,
-    required this.maSanPham,
+  ChiTietKiemKeDto({
+    this.maKiemKe,
+    this.maSanPham,
     this.tenSanPham,
     this.soLuongTon,
     this.soLuongThucTe,
     this.trangThai,
     this.nguyenNhan,
     this.anh,
-    this.img,
+    this.anh2,
+    this.anh3,
+    this.anh4,
+    this.anh5,
+    this.anh6,
+    this.images,
   });
 
-  // Factory constructor để chuyển từ JSON sang đối tượng
-  factory ChiTietKiemKe.fromJson(Map<String, dynamic> json) {
-    return ChiTietKiemKe(
+  factory ChiTietKiemKeDto.fromJson(Map<String, dynamic> json) {
+    return ChiTietKiemKeDto(
       maKiemKe: json['maKiemKe'],
       maSanPham: json['maSanPham'],
       tenSanPham: json['tenSanPham'],
@@ -35,10 +43,15 @@ class ChiTietKiemKe {
       trangThai: json['trangThai'],
       nguyenNhan: json['nguyenNhan'],
       anh: json['anh'],
+      anh2: json['anh2'],
+      anh3: json['anh3'],
+      anh4: json['anh4'],
+      anh5: json['anh5'],
+      anh6: json['anh6'],
+      images: List<String>.from(json['images'] ?? []),
     );
   }
 
-  // Phương thức để chuyển đối tượng thành JSON
   Map<String, dynamic> toJson() {
     return {
       'maKiemKe': maKiemKe,
@@ -49,6 +62,12 @@ class ChiTietKiemKe {
       'trangThai': trangThai,
       'nguyenNhan': nguyenNhan,
       'anh': anh,
+      'anh2': anh2,
+      'anh3': anh3,
+      'anh4': anh4,
+      'anh5': anh5,
+      'anh6': anh6,
+      'images': images,
     };
   }
 }

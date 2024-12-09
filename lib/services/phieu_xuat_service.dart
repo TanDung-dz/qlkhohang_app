@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:qlkhohang_app/models/PhieuXuatHang.dart';
 
@@ -8,16 +9,46 @@ import '../config/api_config.dart';
 class PhieuXuatService {
   final String _baseUrl = ApiConfig.baseUrl;
 
-  // Lấy danh sách tất cả các phiếu Xuat hàng
   Future<List<PhieuXuatHang>> getAllPhieuXuat() async {
-    final url = Uri.parse('$_baseUrl/api/PhieuXuatHang/Get');
+    try {
+      final url = Uri.parse('$_baseUrl/api/PhieuXuatHang/Get');
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        print('Response body: ${response.body}'); // In ra response để kiểm tra
+        final List<dynamic> data = jsonDecode(response.body);
+        return data.map((e) => PhieuXuatHang.fromJson(e)).toList();
+      } else {
+        throw HttpException('Failed with status: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error parsing data: $e'); // In ra lỗi chi tiết
+      throw Exception('Failed to load PhieuXuatHang: $e');
+    }
+  }
+
+  // Get by ID
+  Future<PhieuXuatHang> getPhieuXuatById(int id) async {
+    final url = Uri.parse('$_baseUrl/api/PhieuXuatHang/GetById/$id');
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      return PhieuXuatHang.fromJson(jsonDecode(response.body));
+    } else {
+      throw Exception('Failed to load PhieuXuatHang');
+    }
+  }
+
+// Search
+  Future<List<PhieuXuatHang>> searchPhieuXuat(String keyword) async {
+    final url = Uri.parse('$_baseUrl/api/PhieuXuatHang/Search/$keyword');
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
       return data.map((e) => PhieuXuatHang.fromJson(e)).toList();
     } else {
-      throw Exception('Failed to load PhieuXuatHang');
+      throw Exception('Failed to search PhieuXuatHang');
     }
   }
 
@@ -53,3 +84,4 @@ class PhieuXuatService {
     return response.statusCode == 204;
   }
 }
+
