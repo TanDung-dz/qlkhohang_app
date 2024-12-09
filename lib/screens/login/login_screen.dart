@@ -1,5 +1,5 @@
-// lib/screens/login/login_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../../services/auth_service.dart';
 import '../home/home_screen.dart';
 
@@ -15,9 +15,9 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   final _authService = AuthService();
   bool _isLoading = false;
+  bool _isPasswordVisible = false;
   String? _errorMessage;
 
-  // Trong login_screen.dart
   Future<void> _login() async {
     setState(() {
       _isLoading = true;
@@ -52,56 +52,169 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                'Đăng nhập',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 32),
-              TextField(
-                controller: _usernameController,
-                decoration: const InputDecoration(
-                  labelText: 'Tên đăng nhập',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Mật khẩu',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              if (_errorMessage != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 16),
-                  child: Text(
-                    _errorMessage!,
-                    style: const TextStyle(color: Colors.red),
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Logo and Title Section
+                Center(
+                  child: Column(
+                    children: [
+                      // Replace with your actual logo or SVG
+                      SvgPicture.asset(
+                        'assets/warehouse_logo.svg',
+                        height: 120,
+                        width: 120,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Quản Lý Kho Hàng',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blueGrey[800],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Đăng nhập vào tài khoản của bạn',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.blueGrey[600],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: _isLoading ? null : _login,
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 50),
+                const SizedBox(height: 40),
+
+                // Username TextField
+                _buildTextField(
+                  controller: _usernameController,
+                  labelText: 'Tên đăng nhập',
+                  prefixIcon: Icons.person_outline,
                 ),
-                child: _isLoading
-                    ? const CircularProgressIndicator()
-                    : const Text('Đăng nhập'),
-              ),
-            ],
+                const SizedBox(height: 16),
+
+                // Password TextField
+                _buildTextField(
+                  controller: _passwordController,
+                  labelText: 'Mật khẩu',
+                  prefixIcon: Icons.lock_outline,
+                  isPassword: true,
+                  isPasswordVisible: _isPasswordVisible,
+                  onPasswordVisibilityToggle: () {
+                    setState(() {
+                      _isPasswordVisible = !_isPasswordVisible;
+                    });
+                  },
+                ),
+
+                // Error Message
+                if (_errorMessage != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Center(
+                      child: Text(
+                        _errorMessage!,
+                        style: TextStyle(
+                          color: Colors.red[700],
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                const SizedBox(height: 24),
+
+                // Login Button
+                _buildLoginButton(),
+
+                // Forgot Password
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {
+                      // Implement forgot password functionality
+                    },
+                    child: Text(
+                      'Quên mật khẩu?',
+                      style: TextStyle(color: Colors.blueGrey[700]),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String labelText,
+    required IconData prefixIcon,
+    bool isPassword = false,
+    bool isPasswordVisible = false,
+    VoidCallback? onPasswordVisibilityToggle,
+  }) {
+    return TextField(
+      controller: controller,
+      obscureText: isPassword && !isPasswordVisible,
+      decoration: InputDecoration(
+        labelText: labelText,
+        prefixIcon: Icon(prefixIcon, color: Colors.blueGrey[600]),
+        suffixIcon: isPassword
+            ? IconButton(
+          icon: Icon(
+            isPasswordVisible
+                ? Icons.visibility_outlined
+                : Icons.visibility_off_outlined,
+            color: Colors.blueGrey[600],
+          ),
+          onPressed: onPasswordVisibilityToggle,
+        )
+            : null,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.blueGrey[200]!),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.blueGrey[200]!),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: Colors.blue[700]!, width: 2),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoginButton() {
+    return ElevatedButton(
+      onPressed: _isLoading ? null : _login,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.blue[700],
+        foregroundColor: Colors.white,
+        minimumSize: const Size(double.infinity, 56),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        elevation: 4,
+      ),
+      child: _isLoading
+          ? const CircularProgressIndicator(color: Colors.white)
+          : const Text(
+        'Đăng Nhập',
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
         ),
       ),
     );

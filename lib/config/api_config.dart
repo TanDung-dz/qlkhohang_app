@@ -7,6 +7,7 @@ class ApiConfig {
       return 'http://localhost:5084';  // URL cho web
     } else {
       return 'http://10.0.2.2:5084';   // URL cho Android emulator
+      // return 'http://10.150.0.126:5084';
     }
   }
 }
