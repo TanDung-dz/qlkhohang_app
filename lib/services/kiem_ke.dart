@@ -18,15 +18,15 @@ class KiemKeService {
   }
 
   // Lấy thông tin chi tiết của một phiếu kiểm kê
-  Future<dynamic> getInventoryCheckById(int id) async {
+  Future<Map<String, dynamic>> getInventoryCheckById(int id) async {
     final response = await http.get(Uri.parse('$baseUrl/api/KiemKe/GetById/$id'));
-
     if (response.statusCode == 200) {
-      return json.decode(response.body);
+      return json.decode(response.body); // Phải có trường `tenNhanVienKho`
     } else {
-      throw Exception('Failed to load inventory check');
+      throw Exception('Failed to load inventory check for ID $id');
     }
   }
+
 
   // Tạo một phiếu kiểm kê mới
   Future<dynamic> createInventoryCheck(Map<String, dynamic> newInventoryCheckDto) async {

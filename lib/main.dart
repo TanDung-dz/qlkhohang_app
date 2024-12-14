@@ -5,7 +5,7 @@ import 'screens/login/login_screen.dart';
 
 void main() {
   HttpOverrides.global = MyHttpOverrides();
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyHttpOverrides extends HttpOverrides {

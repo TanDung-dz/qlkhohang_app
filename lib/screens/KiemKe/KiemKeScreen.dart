@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+
 import '../../models/KiemKe.dart';
 import '../../services/kiem_ke.dart';
 import 'ChiTietKiemKe.dart';
+import 'SuaKiemKeScreen.dart';
+import 'ThemKiemKe.dart';
 
 class KiemKeScreen extends StatefulWidget {
   @override
@@ -108,19 +111,19 @@ class _KiemKeScreenState extends State<KiemKeScreen> {
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // IconButton(
-                    //   icon: Icon(Icons.edit, color: Colors.blue),
-                    //   onPressed: () async {
-                    //     final result = await Navigator.of(context).push(
-                    //       MaterialPageRoute(
-                    //         builder: (ctx) => SuaKiemKeScreen(kiemKe: kiemKe),
-                    //       ),
-                    //     );
-                    //     if (result == true) {
-                    //       _fetchKiemKeList();
-                    //     }
-                    //   },
-                    // ),
+                    IconButton(
+                      icon: Icon(Icons.edit, color: Colors.blue),
+                      onPressed: () async {
+                        final result = await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (ctx) => SuaKiemKeScreen(kiemKe: kiemKe), // Thay KiemKe bằng kiemKe
+                          ),
+                        );
+                        if (result == true) {
+                          _fetchKiemKeList();
+                        }
+                      },
+                    ),
                     IconButton(
                       icon: Icon(Icons.delete, color: Colors.red),
                       onPressed: () => _deleteKiemKe(kiemKe.maKiemKe!),
@@ -131,6 +134,20 @@ class _KiemKeScreenState extends State<KiemKeScreen> {
             );
           },
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          final result = await Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => ThemKiemKeScreen(),
+            ),
+          );
+          if (result == true) {
+            _fetchKiemKeList(); // Refresh danh sách sau khi thêm mới
+          }
+        },
+        child: Icon(Icons.add),
+        tooltip: 'Thêm phiếu kiểm kê',
       ),
     );
   }

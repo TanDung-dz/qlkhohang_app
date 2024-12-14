@@ -1,7 +1,9 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import '../Config/api_config.dart';
+import '../models/ChiTietKiemKe.dart';
 
 
 class ChiTietKiemKeService {
@@ -23,18 +25,23 @@ class ChiTietKiemKeService {
   }
 
   // Lấy chi tiết kiểm kê theo mã kiểm kê
-  Future<List<dynamic>> getDetailsById(int id) async {
+  Future<List<ChiTietKiemKe>> getDetailsById(int id) async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/api/ChiTietKiemKe/GetById/$id'));
+
       if (response.statusCode == 200) {
-        return json.decode(response.body);
+        final List<dynamic> data = json.decode(response.body);
+
+        // Chuyển List<dynamic> thành List<ChiTietKiemKe>
+        return data.map((json) => ChiTietKiemKe.fromJson(json)).toList();
       } else {
-        throw Exception('Failed to load details for id: $id');
+        throw Exception('Failed to load details for ID: $id');
       }
     } catch (e) {
       throw Exception('Error fetching data: $e');
     }
   }
+
 
   // Lấy chi tiết kiểm kê theo mã kiểm kê và mã sản phẩm
   Future<Map<String, dynamic>> getDetail(int kiemKeId, int sanPhamId) async {
@@ -138,6 +145,19 @@ class ChiTietKiemKeService {
       }
     } catch (e) {
       throw Exception('Error deleting detail: $e');
+    }
+  }
+
+  Future<bool> uploadImageForDetail(int maKiemKe, int maSanPham, File imageFile) async {
+    try {
+      var uri = Uri.parse('$baseUrl/api/ChiTietKiemKe/UploadImage/$maKiemKe/$maSanPham');
+      var request = http.MultipartRequest('POST', uri);
+      request.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
+
+      var response = await request.send();
+      return response.statusCode == 200 || response.statusCode == 201;
+    } catch (e) {
+      throw Exception('Lỗi upload ảnh: $e');
     }
   }
 }
