@@ -8,7 +8,6 @@ class KhachHang {
   bool? hide;
   String? tenLoai;
 
-  // Constructor
   KhachHang({
     required this.maKhachHang,
     this.tenKhachHang,
@@ -20,21 +19,20 @@ class KhachHang {
     this.tenLoai,
   });
 
-  // Factory constructor để chuyển từ JSON sang đối tượng
   factory KhachHang.fromJson(Map<String, dynamic> json) {
     return KhachHang(
-      maKhachHang: json['maKhachHang'],
-      tenKhachHang: json['tenKhachHang'],
-      soDt: json['soDt'],
-      diachi: json['diachi'],
-      email: json['email'],
-      maLoai: json['maLoai'],
-      hide: json['hide'],
-      tenLoai: json['tenLoai'],
+      maKhachHang: json['maKhachHang'] as int,  // Ép kiểu rõ ràng
+      tenKhachHang: json['tenKhachHang'] as String?,
+      soDt: json['soDt'] as String?,
+      diachi: json['diachi'] as String?,
+      email: json['email'] as String?,
+      maLoai: json['maLoai'] as int,  // Ép kiểu rõ ràng
+      hide: json['hide'] as bool?,
+      tenLoai: json['tenLoai'] as String?,
     );
   }
 
-  // Phương thức để chuyển đối tượng thành JSON
+  // Phương thức toJson giữ nguyên
   Map<String, dynamic> toJson() {
     return {
       'maKhachHang': maKhachHang,

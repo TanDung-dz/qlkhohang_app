@@ -11,14 +11,25 @@ class KhachHangService {
   static Future<List<KhachHang>> getKhachHangList() async {
     try {
       final response = await http.get(Uri.parse('$baseUrl/api/KhachHang/Get'));
+      print('Raw response: ${response.body}'); // Debug response
 
       if (response.statusCode == 200) {
         List<dynamic> data = json.decode(response.body);
-        return data.map((item) => KhachHang.fromJson(item)).toList();
+        print('Decoded data: $data'); // Debug decoded data
+
+        final List<KhachHang> khachHangList = data.map((item) {
+          print('Processing item: $item'); // Debug individual items
+          return KhachHang.fromJson(item as Map<String, dynamic>);
+        }).toList();
+
+        print('Processed list: $khachHangList'); // Debug final list
+        return khachHangList;
       } else {
-        throw Exception('Failed to load KhachHang');
+        throw Exception('Failed to load KhachHang: ${response.statusCode}');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('Error in getKhachHangList: $e');
+      print('Stack trace: $stackTrace');
       throw Exception('Error fetching KhachHang: $e');
     }
   }

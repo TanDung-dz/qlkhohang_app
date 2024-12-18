@@ -5,35 +5,11 @@ import '../config/api_config.dart';
 import '../models/ChiTietPhieuXuatHang.dart';
 
 class ChiTietPhieuXuatHangService {
-  final String baseUrl = ApiConfig.baseUrl;
-
-  Future<bool> uploadImage(int maPhieuXuatHang, int maSanPham, File imageFile, String imageField) async {
-    final url = Uri.parse('$baseUrl/api/ChiTietPhieuXuatHang/UploadImage');
-    final request = http.MultipartRequest('POST', url);
-
-    // Gửi thông tin cơ bản
-    request.fields['maPhieuXuatHang'] = maPhieuXuatHang.toString();
-    request.fields['maSanPham'] = maSanPham.toString();
-
-    // Thêm file ảnh
-    request.files.add(
-      await http.MultipartFile.fromPath(imageField, imageFile.path),
-    );
-
-    try {
-      final response = await request.send();
-
-      // Kiểm tra phản hồi từ server
-      return response.statusCode == 200;
-    } catch (e) {
-      print('Error uploading image: $e');
-      return false;
-    }
-  }
+  final String _baseUrl = ApiConfig.baseUrl;
 
   // Lấy danh sách tất cả chi tiết phiếu xuất hàng
   Future<List<ChiTietPhieuXuatHang>> getAllDetails() async {
-    final url = Uri.parse('$baseUrl/api/ChiTietPhieuXuatHang/Get');
+    final url = Uri.parse('$_baseUrl/api/ChiTietPhieuXuatHang/Get');
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -46,7 +22,7 @@ class ChiTietPhieuXuatHangService {
 
   // Lấy chi tiết phiếu xuất hàng theo mã phiếu xuất
   Future<List<ChiTietPhieuXuatHang>> getDetailsByPhieuXuatId(int id) async {
-    final url = Uri.parse('$baseUrl/api/ChiTietPhieuXuatHang/GetById/$id');
+    final url = Uri.parse('$_baseUrl/api/ChiTietPhieuXuatHang/GetById/$id');
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -59,7 +35,7 @@ class ChiTietPhieuXuatHangService {
 
   // Lấy chi tiết phiếu xuất hàng theo mã phiếu xuất và mã sản phẩm
   Future<ChiTietPhieuXuatHang> getDetailByIds(int phieuXuatId, int sanPhamId) async {
-    final url = Uri.parse('$baseUrl/api/ChiTietPhieuXuatHang/GetDetail/$phieuXuatId/$sanPhamId');
+    final url = Uri.parse('$_baseUrl/api/ChiTietPhieuXuatHang/GetDetail/$phieuXuatId/$sanPhamId');
     final response = await http.get(url);
 
     if (response.statusCode == 200) {
@@ -71,34 +47,76 @@ class ChiTietPhieuXuatHangService {
   }
 
   // Tạo mới chi tiết phiếu xuất hàng
-  Future<bool> createDetail(ChiTietPhieuXuatHang detail) async {
-    final url = Uri.parse('$baseUrl/api/ChiTietPhieuXuatHang/Create');
-    final response = await http.post(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(detail.toJson()),
-    );
+  Future<bool> createDetail(ChiTietPhieuXuatHang detail, {File? imageFile}) async {
+    final url = Uri.parse('$_baseUrl/api/ChiTietPhieuXuatHang/uploadfile');
+    final request = http.MultipartRequest('POST', url);
 
+    request.fields['maPhieuXuatHang'] = detail.maPhieuXuatHang.toString();
+    request.fields['maSanPham'] = detail.maSanPham.toString();
+    request.fields['soLuong'] = detail.soLuong.toString();
+    request.fields['donGiaXuat'] = detail.donGiaXuat.toString();
+    request.fields['trangThai'] = detail.trangThai.toString();
+
+    if (imageFile != null) {
+      request.files.add(
+        await http.MultipartFile.fromPath('img', imageFile.path),
+      );
+    }
+
+    final response = await request.send();
     return response.statusCode == 201;
   }
 
-  // Cập nhật chi tiết phiếu xuất hàng
-  Future<bool> updateDetail(int phieuXuatId, int sanPhamId, ChiTietPhieuXuatHang detail) async {
-    final url = Uri.parse('$baseUrl/api/ChiTietPhieuXuatHang/Update/$phieuXuatId/$sanPhamId');
-    final response = await http.put(
-      url,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(detail.toJson()),
-    );
+  // Cập nhật chi tiết phiếu xuất hàng (bao gồm ảnh)
+  Future<bool> updateDetail(int maPhieuXuat, int maSanPham, ChiTietPhieuXuatHang detail, {File? imageFile}) async {
+    final url = Uri.parse('$_baseUrl/api/ChiTietPhieuXuatHang/UpdateDetail/$maPhieuXuat/$maSanPham');
+
+    try {
+      var request = http.MultipartRequest('PUT', url);
+
+      request.fields.addAll({
+        'maPhieuXuatHang': detail.maPhieuXuatHang.toString(),
+        'maSanPham': detail.maSanPham.toString(),
+        'soLuong': detail.soLuong.toString(),
+        'trangThai': (detail.trangThai ?? 0).toString(),
+        'tenSanPham': detail.tenSanPham ?? '',
+      });
+
+      if (imageFile != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath('Images', imageFile.path),
+        );
+      }
+
+      final response = await request.send();
+      return response.statusCode == 204;
+    } catch (e) {
+      print("Error updating detail: $e");
+      return false;
+    }
+  }
+
+  // Xóa chi tiết phiếu xuất hàng
+  Future<bool> deleteDetail(int maPhieuXuat, int maSanPham) async {
+    final url = Uri.parse('$_baseUrl/api/ChiTietPhieuXuatHang/$maPhieuXuat/$maSanPham');
+    final response = await http.delete(url);
 
     return response.statusCode == 204;
   }
 
-  // Xóa chi tiết phiếu xuất hàng
-  Future<bool> deleteDetail(int phieuXuatId, int sanPhamId) async {
-    final url = Uri.parse('$baseUrl/api/ChiTietPhieuXuatHang/Delete/$phieuXuatId/$sanPhamId');
-    final response = await http.delete(url);
+  // Upload chi tiết phiếu xuất hàng với ảnh
+  Future<bool> uploadChiTietWithImage(int maPhieuXuatHang, int maSanPham, File imageFile) async {
+    final url = Uri.parse('$_baseUrl/api/ChiTietPhieuXuatHang/CreateDetailWithImage/uploadfile');
+    final request = http.MultipartRequest('POST', url);
 
-    return response.statusCode == 204;
+    request.fields['maPhieuXuatHang'] = maPhieuXuatHang.toString();
+    request.fields['maSanPham'] = maSanPham.toString();
+
+    request.files.add(
+      await http.MultipartFile.fromPath('img', imageFile.path),
+    );
+
+    final response = await request.send();
+    return response.statusCode == 200;
   }
 }

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import '../../models/KhachHang.dart';
+
+import '../../Models/KhachHang.dart';
 import '../../models/PhieuXuatHang.dart';
 import '../../models/ChiTietPhieuXuatHang.dart';
 import '../../services/khach_hang_service.dart';
@@ -20,11 +21,12 @@ class SuaPhieuXuatScreen extends StatefulWidget {
 class _SuaPhieuXuatScreenState extends State<SuaPhieuXuatScreen> {
   final _phieuXuatService = PhieuXuatService();
   final _chiTietService = ChiTietPhieuXuatHangService();
-  late PhieuXuatHang _currentPhieuXuat;
-  List<ChiTietPhieuXuatHang> _chiTietList = [];
-  List<KhachHang> _khachHangList = []; // Danh sách khách hàng
-  bool _isLoading = true;
   final _formKey = GlobalKey<FormState>();
+
+  late PhieuXuatHang _currentPhieuXuat;
+  List<KhachHang> _khachHangList = [];
+  List<ChiTietPhieuXuatHang> _chiTietList = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
@@ -35,30 +37,19 @@ class _SuaPhieuXuatScreenState extends State<SuaPhieuXuatScreen> {
 
   Future<void> _loadInitialData() async {
     try {
-      // Tải chi tiết phiếu xuất
-      final chiTietList = await _chiTietService.getDetailsByPhieuXuatId(_currentPhieuXuat.maPhieuXuatHang!);
-      // Tải danh sách khách hàng
-      final khachHangList = await KhachHangService.getKhachHangList(); // Gọi API để lấy khách hàng
+      final results = await Future.wait([
+        KhachHangService.getKhachHangList(),
+        _chiTietService.getDetailsByPhieuXuatId(_currentPhieuXuat.maPhieuXuatHang!)
+      ]);
 
       setState(() {
-        _chiTietList = chiTietList;
-        _khachHangList = khachHangList.cast<KhachHang>();
+        _khachHangList = results[0] as List<KhachHang>;
+        _chiTietList = results[1] as List<ChiTietPhieuXuatHang>;
         _isLoading = false;
       });
     } catch (e) {
       setState(() => _isLoading = false);
       _showMessage('Lỗi tải dữ liệu: $e', isError: true);
-    }
-  }
-
-  Future<void> _fetchChiTietPhieuXuat() async {
-    try {
-      final list = await _chiTietService.getDetailsByPhieuXuatId(_currentPhieuXuat.maPhieuXuatHang!);
-      setState(() {
-        _chiTietList = list;
-      });
-    } catch (e) {
-      _showMessage('Lỗi tải chi tiết: $e', isError: true);
     }
   }
 
@@ -68,21 +59,32 @@ class _SuaPhieuXuatScreenState extends State<SuaPhieuXuatScreen> {
 
     if (pickedFile != null) {
       try {
-        final success = await _chiTietService.uploadImage(
-          _chiTietList[index].maPhieuXuatHang!,
-          _chiTietList[index].maSanPham!,
-          File(pickedFile.path),
-          'image', // Assuming the field name is 'image'
+        final success = await _chiTietService.uploadChiTietWithImage(
+          _chiTietList[index].maPhieuXuatHang,  // Sử dụng maPhieuXuatHang
+          _chiTietList[index].maSanPham,       // Sử dụng maSanPham
+          File(pickedFile.path),               // File ảnh được chọn
         );
 
         if (success) {
-          await _fetchChiTietPhieuXuat();
+          await _fetchChiTietPhieuXuat();      // Cập nhật dữ liệu chi tiết phiếu xuất
         } else {
           _showMessage('Lỗi upload ảnh', isError: true);
         }
       } catch (e) {
         _showMessage('Lỗi: $e', isError: true);
       }
+    }
+  }
+
+
+  Future<void> _fetchChiTietPhieuXuat() async {
+    try {
+      final list = await _chiTietService.getDetailsByPhieuXuatId(_currentPhieuXuat.maPhieuXuatHang!);
+      setState(() {
+        _chiTietList = list;
+      });
+    } catch (e) {
+      _showMessage('Lỗi tải chi tiết: $e', isError: true);
     }
   }
 
@@ -102,7 +104,36 @@ class _SuaPhieuXuatScreenState extends State<SuaPhieuXuatScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Trạng thái phiếu xuất
+              // Dropdown khách hàng
+              DropdownButtonFormField<int>(
+                decoration: const InputDecoration(
+                  labelText: 'Khách hàng',
+                  border: OutlineInputBorder(),
+                ),
+                value: _currentPhieuXuat.maKhachHang,
+                items: _khachHangList.map((khachHang) {
+                  return DropdownMenuItem<int>(
+                    value: khachHang.maKhachHang,
+                    child: Text(khachHang.tenKhachHang ?? 'Không có tên'),
+                  );
+                }).toList(),
+                onChanged: (newValue) {
+                  if (newValue != null) {
+                    final khachHang = _khachHangList.firstWhere((k) => k.maKhachHang == newValue);
+                    setState(() {
+                      _currentPhieuXuat = _currentPhieuXuat.copyWith(
+                        maKhachHang: newValue,
+                        tenKhachHang: khachHang.tenKhachHang,
+                      );
+                    });
+                  }
+                },
+                validator: (value) => value == null ? 'Vui lòng chọn khách hàng' : null,
+              ),
+
+              const SizedBox(height: 16),
+
+              // Dropdown trạng thái phiếu xuất
               DropdownButtonFormField<int>(
                 decoration: const InputDecoration(
                   labelText: 'Trạng thái',
@@ -121,35 +152,12 @@ class _SuaPhieuXuatScreenState extends State<SuaPhieuXuatScreen> {
                   });
                 },
               ),
-
-              const SizedBox(height: 16),
-
-              // Chọn khách hàng
-              DropdownButtonFormField<int>(
-                decoration: const InputDecoration(
-                  labelText: 'Khách hàng',
-                  border: OutlineInputBorder(),
-                ),
-                value: _currentPhieuXuat.maKhachHang, // Hiện khách hàng hiện tại
-                items: _khachHangList
-                    .map((khachHang) => DropdownMenuItem(
-                  value: khachHang.maKhachHang,
-                  child: Text(khachHang.tenKhachHang ?? 'Không có tên'),
-                ))
-                    .toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _currentPhieuXuat = _currentPhieuXuat.copyWith(maKhachHang: value);
-                  });
-                },
-              ),
             ],
           ),
         ),
       ),
     );
   }
-
 
   Widget _buildChiTietCard(ChiTietPhieuXuatHang chiTiet, int index) {
     return Card(
@@ -166,28 +174,28 @@ class _SuaPhieuXuatScreenState extends State<SuaPhieuXuatScreen> {
                   'Chi tiết sản phẩm #${index + 1}',
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
 
                 // Tên sản phẩm
                 TextFormField(
-                  initialValue: chiTiet.tenSanPham ?? 'Không có tên',
-                  decoration: InputDecoration(
+                  initialValue: chiTiet.tenSanPham ?? '',
+                  decoration: const InputDecoration(
                     labelText: 'Tên sản phẩm',
                     border: OutlineInputBorder(),
                   ),
                   onChanged: (value) {
                     setState(() {
-                      _chiTietList[index] = _chiTietList[index].copyWith(tenSanPham: value);
+                      _chiTietList[index] = chiTiet.copyWith(tenSanPham: value);
                     });
                   },
                 ),
 
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
 
                 // Số lượng
                 TextFormField(
-                  initialValue: chiTiet.soLuong?.toString() ?? '0',
-                  decoration: InputDecoration(
+                  initialValue: chiTiet.soLuong?.toString(),
+                  decoration: const InputDecoration(
                     labelText: 'Số lượng',
                     border: OutlineInputBorder(),
                   ),
@@ -195,7 +203,7 @@ class _SuaPhieuXuatScreenState extends State<SuaPhieuXuatScreen> {
                   onChanged: (value) {
                     if (value.isNotEmpty && int.tryParse(value) != null) {
                       setState(() {
-                        _chiTietList[index] = _chiTietList[index].copyWith(soLuong: int.parse(value));
+                        _chiTietList[index] = chiTiet.copyWith(soLuong: int.parse(value));
                       });
                     }
                   },
@@ -204,7 +212,6 @@ class _SuaPhieuXuatScreenState extends State<SuaPhieuXuatScreen> {
             ),
           ),
           _buildImageSection(chiTiet, index),
-          SizedBox(height: 16),
         ],
       ),
     );
@@ -221,52 +228,46 @@ class _SuaPhieuXuatScreenState extends State<SuaPhieuXuatScreen> {
             style: Theme.of(context).textTheme.titleSmall,
           ),
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         if (chiTiet.images != null && chiTiet.images!.isNotEmpty)
           Container(
             height: 120,
-            margin: EdgeInsets.symmetric(horizontal: 16),
+            margin: const EdgeInsets.symmetric(horizontal: 16),
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: chiTiet.images!.length,
               itemBuilder: (context, imgIndex) {
-                return Card(
-                  margin: EdgeInsets.only(right: 8),
-                  child: Stack(
-                    children: [
-                      Image.network(
-                        chiTiet.images![imgIndex],
-                        width: 120,
-                        height: 120,
-                        fit: BoxFit.cover,
+                return Stack(
+                  children: [
+                    Image.network(
+                      chiTiet.images![imgIndex],
+                      width: 120,
+                      height: 120,
+                      fit: BoxFit.cover,
+                    ),
+                    Positioned(
+                      right: 0,
+                      top: 0,
+                      child: IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () {
+                          setState(() {
+                            chiTiet.images!.removeAt(imgIndex);
+                          });
+                        },
                       ),
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        child: Material(
-                          color: Colors.transparent,
-                          child: IconButton(
-                            icon: Icon(Icons.delete, color: Colors.red),
-                            onPressed: () {
-                              setState(() {
-                                _chiTietList[index].images!.removeAt(imgIndex);
-                              });
-                            },
-                          ),
-                        ),
-                      )
-                    ],
-                  ),
+                    ),
+                  ],
                 );
               },
             ),
           ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Center(
           child: ElevatedButton.icon(
             onPressed: () => _pickImage(index),
-            icon: Icon(Icons.add_photo_alternate),
-            label: Text('Thêm ảnh'),
+            icon: const Icon(Icons.add_photo_alternate),
+            label: const Text('Thêm ảnh'),
           ),
         ),
       ],
@@ -279,36 +280,29 @@ class _SuaPhieuXuatScreenState extends State<SuaPhieuXuatScreen> {
     try {
       setState(() => _isLoading = true);
 
-      // Cập nhật phiếu xuất
-      final updatePhieuXuatSuccess = await _phieuXuatService.updatePhieuXuat(
+      final success = await _phieuXuatService.updatePhieuXuat(
         _currentPhieuXuat.maPhieuXuatHang!,
         _currentPhieuXuat,
       );
 
-      if (!updatePhieuXuatSuccess) {
-        _showMessage('Cập nhật phiếu xuất không thành công', isError: true);
-        return;
+      if (!success) {
+        throw Exception('Lỗi cập nhật phiếu xuất');
       }
 
-      // Cập nhật từng chi tiết
-      bool hasError = false;
       for (var chiTiet in _chiTietList) {
-        final success = await _chiTietService.updateDetail(
+        final detailSuccess = await _chiTietService.updateDetail(
           chiTiet.maPhieuXuatHang!,
           chiTiet.maSanPham!,
           chiTiet,
         );
 
-        if (!success) {
-          hasError = true;
-          _showMessage('Lỗi cập nhật sản phẩm ${chiTiet.tenSanPham ?? ''}', isError: true);
+        if (!detailSuccess) {
+          throw Exception('Lỗi cập nhật sản phẩm ${chiTiet.tenSanPham}');
         }
       }
 
-      if (!hasError) {
-        _showMessage('Cập nhật thành công');
-        Navigator.of(context).pop(true);
-      }
+      _showMessage('Cập nhật thành công');
+      Navigator.of(context).pop(true);
     } catch (e) {
       _showMessage('Lỗi: $e', isError: true);
     } finally {
@@ -321,7 +315,6 @@ class _SuaPhieuXuatScreenState extends State<SuaPhieuXuatScreen> {
       SnackBar(
         content: Text(message),
         backgroundColor: isError ? Colors.red : Colors.green,
-        duration: Duration(seconds: 2),
       ),
     );
   }
@@ -334,22 +327,21 @@ class _SuaPhieuXuatScreenState extends State<SuaPhieuXuatScreen> {
         actions: [
           if (!_isLoading)
             IconButton(
-              icon: Icon(Icons.save),
+              icon: const Icon(Icons.save),
               onPressed: _updatePhieuXuat,
             ),
         ],
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
         child: Column(
           children: [
             _buildPhieuXuatForm(),
-            SizedBox(height: 16),
-            // Danh sách chi tiết
+            const SizedBox(height: 16),
             ListView.builder(
               shrinkWrap: true,
-              physics: NeverScrollableScrollPhysics(),
+              physics: const NeverScrollableScrollPhysics(),
               itemCount: _chiTietList.length,
               itemBuilder: (context, index) {
                 return _buildChiTietCard(_chiTietList[index], index);
